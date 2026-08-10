@@ -21,12 +21,7 @@ Moderate:
 Low:
     HSR < 40 m AND accelerations < 15
 
-Important distinction
----------------------
-Strict measured compliance uses only rows with measured tagged-drill HSR and
-acceleration data. Operational compliance additionally counts Low days that
-were explicitly inferred from no practice/game data as assumed hits. The two
-rates are always displayed separately.
+
 """
 
 from __future__ import annotations
