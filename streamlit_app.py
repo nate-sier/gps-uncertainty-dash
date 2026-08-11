@@ -33,6 +33,7 @@ from io import BytesIO
 import json
 import tempfile
 import os
+import hmac
 import re
 import time
 import unicodedata
@@ -49,6 +50,65 @@ try:
 except ImportError:
     gspread = None
     rowcol_to_a1 = None
+
+
+# -----------------------------------------------------------------------------
+# App password protection
+# -----------------------------------------------------------------------------
+def _configured_app_password() -> str:
+    """Return the configured app password. Fail closed when it is missing."""
+    try:
+        # Preferred Streamlit Cloud format:
+        # APP_PASSWORD = "your-password"
+        if "APP_PASSWORD" in st.secrets:
+            return str(st.secrets["APP_PASSWORD"]).strip()
+
+        # Also support:
+        # [app]
+        # password = "your-password"
+        if "app" in st.secrets and "password" in st.secrets["app"]:
+            return str(st.secrets["app"]["password"]).strip()
+    except Exception:
+        pass
+
+    # Optional local-development fallback.
+    return os.getenv("APP_PASSWORD", "").strip()
+
+
+def require_app_password() -> None:
+    """Block the entire Streamlit app until the correct password is entered."""
+    expected_password = _configured_app_password()
+
+    # IMPORTANT: if the secret is missing, do NOT let the dashboard open.
+    if not expected_password:
+        st.error(
+            "APP_PASSWORD is not configured. Add APP_PASSWORD to Streamlit Secrets "
+            "before using this app."
+        )
+        st.stop()
+
+    if st.session_state.get("app_authenticated", False):
+        return
+
+    st.title("Nationals GPS Dashboard")
+    st.write("Enter the app password to continue.")
+
+    with st.form("app_login_form", clear_on_submit=False):
+        entered_password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Log in", type="primary")
+
+    if submitted:
+        if hmac.compare_digest(str(entered_password), expected_password):
+            st.session_state["app_authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+    # Nothing below this line executes until authentication succeeds.
+    st.stop()
+
+
+require_app_password()
 
 
 
